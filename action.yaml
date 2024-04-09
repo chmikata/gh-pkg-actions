@@ -1,0 +1,32 @@
+name: "GitHub Package Operation"
+description: "Operation GitHub Package with gh-pkg-cli"
+author: "mekka<chmikata@gmail.com>"
+inputs:
+  command:
+    description: "Command to run"
+    required: true
+  org:
+    description: "Organization name"
+    required: true
+  matcher:
+    description: "Matcher package name"
+    required: true
+  pattern:
+    description: "Pattern sem or sha"
+    required: false
+    default: "sem"
+  depth:
+    description: "Tag search depth"
+    required: false
+    default: "0"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "-c ${{ inputs.command }}"
+    - "-o ${{ inputs.org }}"
+    - "-t ${{ secrets.GITHUB_TOKEN }}"
+    - "-m ${{ inputs.matcher }}"
+    - "-p ${{ inputs.pattern }}"
+    - "-d ${{ inputs.depth }}"
