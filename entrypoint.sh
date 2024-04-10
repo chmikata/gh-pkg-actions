@@ -29,5 +29,11 @@ while getopts "c:o:t:m:p:d:" opt; do
   esac
 done
 
-# run command
-/app/gh-pkg-cli "${args}"
+#/app/gh-pkg-cli ${args}
+
+time=$(date)
+echo "time=$time" >> $GITHUB_OUTPUT
+echo "GITHUB_OUTPT/ $GITHUB_OUTPUT"
+cat $GITHUB_OUTPUT
+
+echo "action done."

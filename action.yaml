@@ -19,14 +19,24 @@ inputs:
     description: "Tag search depth"
     required: false
     default: "0"
-
+  token:
+    description: "GitHub Token"
+    required: false
+    default: "${{ secrets.GITHUB_TOKEN }}"
+outputs:
+  package:
+    description: "Package names"
+  tag:
+    description: "Tag names"
+  time:
+    description: "The time we greeted you"
 runs:
   using: "docker"
   image: "Dockerfile"
   args:
     - "-c ${{ inputs.command }}"
     - "-o ${{ inputs.org }}"
-    - "-t ${{ secrets.GITHUB_TOKEN }}"
+    - "-t ${{ inputs.token }}"
     - "-m ${{ inputs.matcher }}"
     - "-p ${{ inputs.pattern }}"
     - "-d ${{ inputs.depth }}"
