@@ -30,13 +30,5 @@ while getopts "c:o:t:m:p:d:" opt; do
 done
 
 output=$(/app/gh-pkg-cli ${args})
-
-case "${cmd}" in
-  "package")
-    echo "package=${output}" >> "${GITHUB_OUTPUT}"
-  ;;
-  "tag")
-    echo "tag=${output}" >> "${GITHUB_OUTPUT}"
-  ;;
-esac
+echo "result=${output}" >> "${GITHUB_OUTPUT}"
 cat "${GITHUB_OUTPUT}"

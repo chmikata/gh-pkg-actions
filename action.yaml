@@ -24,10 +24,8 @@ inputs:
     required: false
     default: "${{ github.token }}"
 outputs:
-  package:
-    description: "Package names"
-  tag:
-    description: "Tag names"
+  result:
+    description: "Output result"
 runs:
   using: "docker"
   image: "Dockerfile"
