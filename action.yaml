@@ -28,8 +28,6 @@ outputs:
     description: "Package names"
   tag:
     description: "Tag names"
-  time:
-    description: "The time we greeted you"
 runs:
   using: "docker"
   image: "Dockerfile"
