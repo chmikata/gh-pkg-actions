@@ -24,7 +24,7 @@ Flags:
   ・・・
 
 Global Flags:
-  -m, --matcher string   Name of the container image to match (default ".*")
+  -m, --matcher string   Name of the container image to match
   -o, --org string       Organization name
   -t, --token string     Token for authentication
 ```
@@ -33,16 +33,17 @@ Global Flags:
 
 | Name      | Shortened Name | Type     | Required | Default | Description                          |
 | --------- | -------------- | -------- | -------- | ------- | ------------------------------------ |
-| `org`     | `o`            | `String` | `true`   | `''`    | Organization name                    |
-| `token`   | `t`            | `String` | `true`   | `''`    | PAT on GitHub                        |
-| `matcher` | `m`            | `String` | `false`  | `.*`    | Name of the container image to match |
+| `org`     | `o`            | `String` | `true`   |         | Organization name                    |
+| `token`   | `t`            | `String` | `true`   |         | PAT on GitHub                        |
+| `matcher` | `m`            | `String` | `true`   |         | Name of the container image to match |
 
 ### Command [tag] Flags
 
-| Name      | Shortened Name | Type     | Required | Default | Description                                   |
-| --------- | -------------- | -------- | -------- | ------- | --------------------------------------------- |
-| `pattern` | `p`            | `String` | `true`   | `''`    | Pattern to <sem> or <sha> match image to tags |
-| `depth`   | `d`            | `Int`    | `false`  | `0`     | Depth of tags to display                      |
+| Name      | Shortened Name | Type     | Required | Default | Description                                                |
+| --------- | -------------- | -------- | -------- | ------- | ---------------------------------------------------------- |
+| `pattern` | `p`            | `String` | `true`   |         | Pattern to `sem` or `sha` match image to tags              |
+| `depth`   | `d`            | `Int`    | `true`   |         | Depth of tags to display                                   |
+| `range`   | `r`            | `String` | `true`   |         | Pattern to `major` or `minor` or `all` match image to tags |
 
 
 ## Command Output
@@ -58,7 +59,7 @@ $ gh-pkg-cli package --org org --token ********** --matcher test/
 ### Command [tag]
 
 ```bash
-$ gh-pkg-cli tag --org org --token ********** --matcher test/ --pattern sem --depth 2
-{"id":1234567,"name":"test/package1","tags":["1.1.0-rc2","1.1.0-rc1"]}
+$ gh-pkg-cli tag --org org --token ********** --matcher test/ --pattern sem --depth 2 --range minor
+{"id":1234567,"name":"test/package1","tags":["1.1.0-rc2","1.0.0"]}
 {"id":2345678,"name":"test/package2","tags":["1.2.0","1.1.0"]}
 ```

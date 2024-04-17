@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-while getopts "c:o:t:m:p:d:" opt; do
+while getopts "c:o:t:m:p:d:r:" opt; do
   case "${opt}" in
     c)
       cmd=${OPTARG}
@@ -24,6 +24,11 @@ while getopts "c:o:t:m:p:d:" opt; do
     d)
       if [ ${cmd} == "tag" ]; then
         args=$(echo "${args} -d ${OPTARG}")
+      fi
+    ;;
+    r)
+      if [ ${cmd} == "tag" ]; then
+        args=$(echo "${args} -r ${OPTARG}")
       fi
     ;;
   esac
