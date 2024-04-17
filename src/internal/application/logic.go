@@ -79,14 +79,14 @@ func (r *Registry) GetPackages(matcher string) ([]Package, error) {
 	return packages, nil
 }
 
-func (r *Registry) GetTags(matcher, pattern string, depth int) ([]Tag, error) {
+func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) ([]Tag, error) {
 	packages, err := r.getPackages(matcher)
 	if err != nil {
 		return nil, err
 	}
 	tags := make([]Tag, 0, 100)
 	for _, pkg := range packages {
-		arr, err := r.getTags(pkg.Name, pattern, depth)
+		arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +141,7 @@ func (r *Registry) getPackages(matcher string) ([]Package, error) {
 	return packages, nil
 }
 
-func (r *Registry) getTags(name, pattern string, depth int) ([]string, error) {
+func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]string, error) {
 	var matcher string
 	if pattern == "sem" {
 		matcher = SemMatcher
@@ -171,7 +171,7 @@ func (r *Registry) getTags(name, pattern string, depth int) ([]string, error) {
 		for _, i := range tmpArr {
 			for _, tag := range i.Metadata.Container.Tags {
 				match, _ := regexp.MatchString(matcher, tag)
-				if match {
+				if match && r.checkSemRange(semRange, tag, tags) {
 					tags = append(tags, tag)
 				}
 				if depth != 0 && len(tags) >= depth {
@@ -190,6 +190,29 @@ func (r *Registry) getTags(name, pattern string, depth int) ([]string, error) {
 	loop:
 	}
 	return tags, nil
+}
+
+func (r Registry) checkSemRange(semRange, tag string, tags []string) bool {
+	if semRange == "all" {
+		return true
+	}
+	var rex *regexp.Regexp = nil
+	if semRange == "major" {
+		rex = regexp.MustCompile("^[0-9]+")
+	} else if semRange == "minor" {
+		rex = regexp.MustCompile("^[0-9]+\\.[0-9]+")
+	} else {
+		return false
+	}
+
+	target := rex.FindString(tag)
+	for _, t := range tags {
+		check := rex.FindString(t)
+		if target == check {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Registry) execHttpReq(req *http.Request) (http.Header, []byte, error) {

@@ -20,6 +20,7 @@ You can get a list of packages and the tags they have been assigned.
 | `matcher` | `String` | `false`  | `'.*'`  | Specify a regular expression to search package names                   |
 | `pattern` | `String` | `false`  | `sem`   | Search semantic version in `sem`, Git commit hash in sha in `sha`      |
 | `depth`   | `String` | `false`  | `0`     | Depth to search for tags, if 0, search all                             |
+| `range`   | `String` | `false`  | `all`   | Specify the range of tags to compare by `major`, `minor`, `all`        |
 
 ### outputs
 
@@ -84,11 +85,12 @@ jobs:
           matcher: test-image
           pattern: sem
           depth: 2
+          check-range: minor
       - name: Output List
         run: |
           echo ${{ steps.list.outputs.result }}
 ```
 The following output results
 ```bash
-[{"id":1234567,"name":"test/package1","tags":["1.1.0-rc2","1.1.0-rc1"]},{"id":2345678,"name":"test/package2","tags":["1.2.0","1.1.0"]}]
+[{"id":1234567,"name":"test/package1","tags":["1.1.0-rc2","1.0.0"]},{"id":2345678,"name":"test/package2","tags":["1.2.0","1.1.0"]}]
 ```

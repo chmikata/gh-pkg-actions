@@ -27,8 +27,9 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringP("org", "o", "", "Organization name")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "Token for authentication")
-	rootCmd.PersistentFlags().StringP("matcher", "m", ".*", "Name of the container image to match")
+	rootCmd.PersistentFlags().StringP("matcher", "m", "", "Name of the container image to match")
 
 	rootCmd.MarkPersistentFlagRequired("org")
 	rootCmd.MarkPersistentFlagRequired("token")
+	rootCmd.MarkPersistentFlagRequired("matcher")
 }
