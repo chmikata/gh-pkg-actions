@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	UrlBase    = "https://api.github.com/orgs/%s"
+	UrlBase    = "https://api.github.com/orgs/%s/packages"
 	SemMatcher = "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z,A-Z,0-9]*)?$"
 	ShaMatcher = "^sha-[0-9a-f]{40}$"
 )
@@ -42,33 +42,55 @@ type Image struct {
 }
 
 type Registry struct {
-	org       string
-	token     string
-	client    *http.Client
-	urlPrefix string
+	org     string
+	token   string
+	request Request
 }
 
-func NewRegistry(org, token string) *Registry {
-	return &Registry{
+type Option func(*Registry)
+
+func WithRequest(request Request) Option {
+	return func(r *Registry) {
+		r.request = request
+	}
+}
+
+type Request interface {
+	ExecHttpReq(req *http.Request, token string) (http.Header, []byte, error)
+}
+
+type HttpRequest struct {
+	Client *http.Client
+}
+
+var _ = Request(&HttpRequest{})
+
+func NewRegistry(org, token string, options ...Option) *Registry {
+	registry := &Registry{
 		org:   org,
 		token: token,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout: 5 * time.Second,
-				}).DialContext,
-				TLSHandshakeTimeout:   5 * time.Second,
-				ResponseHeaderTimeout: 5 * time.Second,
-				IdleConnTimeout:       5 * time.Second,
-				MaxIdleConns:          100,
-				MaxConnsPerHost:       100,
-				MaxIdleConnsPerHost:   100,
-				TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		request: &HttpRequest{
+			Client: &http.Client{
+				Timeout: 30 * time.Second,
+				Transport: &http.Transport{
+					DialContext: (&net.Dialer{
+						Timeout: 5 * time.Second,
+					}).DialContext,
+					TLSHandshakeTimeout:   5 * time.Second,
+					ResponseHeaderTimeout: 5 * time.Second,
+					IdleConnTimeout:       5 * time.Second,
+					MaxIdleConns:          100,
+					MaxConnsPerHost:       100,
+					MaxIdleConnsPerHost:   100,
+					TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+				},
 			},
 		},
-		urlPrefix: fmt.Sprintf(UrlBase, org),
 	}
+	for _, option := range options {
+		option(registry)
+	}
+	return registry
 }
 
 func (r *Registry) GetPackages(matcher string) ([]Package, error) {
@@ -105,7 +127,7 @@ func (r *Registry) getPackages(matcher string) ([]Package, error) {
 	for i := 1; ; i++ {
 		req, err := http.NewRequest(
 			"GET",
-			r.urlPrefix+"/packages",
+			fmt.Sprintf(UrlBase, r.org),
 			nil)
 		if err != nil {
 			return nil, err
@@ -116,7 +138,7 @@ func (r *Registry) getPackages(matcher string) ([]Package, error) {
 		q.Add("page", fmt.Sprintf("%d", i))
 		req.URL.RawQuery = q.Encode()
 
-		header, body, err := r.execHttpReq(req)
+		header, body, err := r.request.ExecHttpReq(req, r.token)
 		if err != nil {
 			return nil, err
 		}
@@ -152,7 +174,7 @@ func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]
 	for i := 1; ; i++ {
 		req, err := http.NewRequest(
 			"GET",
-			r.urlPrefix+"/packages/container/"+url.PathEscape(name)+"/versions",
+			fmt.Sprintf("%s/container/%s/versions", fmt.Sprintf(UrlBase, r.org), url.PathEscape(name)),
 			nil)
 		if err != nil {
 			return nil, err
@@ -162,7 +184,7 @@ func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]
 		q.Add("page", fmt.Sprintf("%d", i))
 		req.URL.RawQuery = q.Encode()
 
-		header, body, err := r.execHttpReq(req)
+		header, body, err := r.request.ExecHttpReq(req, r.token)
 		if err != nil {
 			return nil, err
 		}
@@ -215,11 +237,11 @@ func (r Registry) checkSemRange(semRange, tag string, tags []string) bool {
 	return true
 }
 
-func (r *Registry) execHttpReq(req *http.Request) (http.Header, []byte, error) {
+func (r *HttpRequest) ExecHttpReq(req *http.Request, token string) (http.Header, []byte, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	resp, err := r.client.Do(req)
+	resp, err := r.Client.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -230,7 +252,7 @@ func (r *Registry) execHttpReq(req *http.Request) (http.Header, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
+	if (resp.StatusCode != http.StatusOK) && (resp.StatusCode != http.StatusCreated) {
 		return nil, nil, fmt.Errorf("HTTP status code: %d, error: %s", resp.StatusCode, body)
 	}
 	return header, body, nil
