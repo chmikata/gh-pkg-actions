@@ -3,6 +3,7 @@ package application
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -106,18 +108,35 @@ func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) 
 	if err != nil {
 		return nil, err
 	}
+	var wg sync.WaitGroup
+	var tagsMu sync.Mutex
+	var errMu sync.Mutex
+	var multiErr error
 	tags := make([]Tag, 0, 100)
 	for _, pkg := range packages {
-		arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
-		if err != nil {
-			return nil, err
-		}
-		tag := Tag{
-			Id:   pkg.Id,
-			Name: pkg.Name,
-			Tags: arr,
-		}
-		tags = append(tags, tag)
+		wg.Add(1)
+		go func(pkg Package) {
+			defer wg.Done()
+			arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
+			if err != nil {
+				errMu.Lock()
+				multiErr = errors.Join(multiErr, err)
+				errMu.Unlock()
+				return
+			}
+			tag := Tag{
+				Id:   pkg.Id,
+				Name: pkg.Name,
+				Tags: arr,
+			}
+			tagsMu.Lock()
+			tags = append(tags, tag)
+			tagsMu.Unlock()
+		}(pkg)
+	}
+	wg.Wait()
+	if multiErr != nil {
+		return nil, multiErr
 	}
 	return tags, nil
 }
@@ -220,9 +239,9 @@ func (r Registry) checkSemRange(semRange, tag string, tags []string) bool {
 	}
 	var rex *regexp.Regexp = nil
 	if semRange == "major" {
-		rex = regexp.MustCompile("^[0-9]+")
+		rex = regexp.MustCompile(`^[0-9]+`)
 	} else if semRange == "minor" {
-		rex = regexp.MustCompile("^[0-9]+\\.[0-9]+")
+		rex = regexp.MustCompile(`^[0-9]+\.[0-9]+`)
 	} else {
 		return false
 	}
