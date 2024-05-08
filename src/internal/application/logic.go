@@ -109,13 +109,15 @@ func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) 
 		return nil, err
 	}
 	var wg sync.WaitGroup
+	var tagsMu sync.Mutex
 	var errMu sync.Mutex
 	var multiErr error
 	tags := make([]Tag, 0, 100)
 	for _, pkg := range packages {
 		wg.Add(1)
 		go func(pkg Package) {
-			arr, err := r.getTags(pkg.Name, pattern, depth, semRange, &wg)
+			defer wg.Done()
+			arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
 			if err != nil {
 				errMu.Lock()
 				multiErr = errors.Join(multiErr, err)
@@ -127,7 +129,9 @@ func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) 
 				Name: pkg.Name,
 				Tags: arr,
 			}
+			tagsMu.Lock()
 			tags = append(tags, tag)
+			tagsMu.Unlock()
 		}(pkg)
 	}
 	wg.Wait()
@@ -178,8 +182,7 @@ func (r *Registry) getPackages(matcher string) ([]Package, error) {
 	return packages, nil
 }
 
-func (r *Registry) getTags(name, pattern string, depth int, semRange string, wg *sync.WaitGroup) ([]string, error) {
-	defer wg.Done()
+func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]string, error) {
 	var matcher string
 	if pattern == "sem" {
 		matcher = SemMatcher
@@ -236,9 +239,9 @@ func (r Registry) checkSemRange(semRange, tag string, tags []string) bool {
 	}
 	var rex *regexp.Regexp = nil
 	if semRange == "major" {
-		rex = regexp.MustCompile("^[0-9]+")
+		rex = regexp.MustCompile(`^[0-9]+`)
 	} else if semRange == "minor" {
-		rex = regexp.MustCompile("^[0-9]+\\.[0-9]+")
+		rex = regexp.MustCompile(`^[0-9]+\.[0-9]+`)
 	} else {
 		return false
 	}
