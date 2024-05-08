@@ -3,6 +3,7 @@ package application
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -106,18 +108,31 @@ func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) 
 	if err != nil {
 		return nil, err
 	}
+	var wg sync.WaitGroup
+	var errMu sync.Mutex
+	var multiErr error
 	tags := make([]Tag, 0, 100)
 	for _, pkg := range packages {
-		arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
-		if err != nil {
-			return nil, err
-		}
-		tag := Tag{
-			Id:   pkg.Id,
-			Name: pkg.Name,
-			Tags: arr,
-		}
-		tags = append(tags, tag)
+		wg.Add(1)
+		go func(pkg Package) {
+			arr, err := r.getTags(pkg.Name, pattern, depth, semRange, &wg)
+			if err != nil {
+				errMu.Lock()
+				multiErr = errors.Join(multiErr, err)
+				errMu.Unlock()
+				return
+			}
+			tag := Tag{
+				Id:   pkg.Id,
+				Name: pkg.Name,
+				Tags: arr,
+			}
+			tags = append(tags, tag)
+		}(pkg)
+	}
+	wg.Wait()
+	if multiErr != nil {
+		return nil, multiErr
 	}
 	return tags, nil
 }
@@ -163,7 +178,8 @@ func (r *Registry) getPackages(matcher string) ([]Package, error) {
 	return packages, nil
 }
 
-func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]string, error) {
+func (r *Registry) getTags(name, pattern string, depth int, semRange string, wg *sync.WaitGroup) ([]string, error) {
+	defer wg.Done()
 	var matcher string
 	if pattern == "sem" {
 		matcher = SemMatcher
