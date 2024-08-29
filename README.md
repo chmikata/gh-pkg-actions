@@ -3,7 +3,7 @@
 ## Introduction
 
 This action refers to GitHub Packages.
-You can get a list of packages and the tags they have been assigned.
+You can get a list of the tags they have been assigned.
 
 > [!WARNING]
 > Not all REST APIs are supported.
@@ -12,15 +12,15 @@ You can get a list of packages and the tags they have been assigned.
 
 ### inputs
 
-| Name      | Type     | Required | Default | Description                                                            |
-| --------- | -------- | -------- | ------- | ---------------------------------------------------------------------- |
-| `command` | `String` | `true`   |         | Search the list of packages by `package` and the list of tags by `tag` |
-| `org`     | `String` | `true`   |         | Name of the organization to be searched                                |
-| `token`   | `String` | `true`   |         | Specify `Personal Access Token`                                        |
-| `matcher` | `String` | `false`  | `'.*'`  | Specify a regular expression to search package names                   |
-| `pattern` | `String` | `false`  | `sem`   | Search semantic version in `sem`, Git commit hash in sha in `sha`      |
-| `depth`   | `String` | `false`  | `0`     | Depth to search for tags, if 0, search all                             |
-| `range`   | `String` | `false`  | `all`   | Specify the range of tags to compare by `major`, `minor`, `all`        |
+| Name      | Type     | Required | Default | Description                                                       |
+| --------- | -------- | -------- | ------- | ----------------------------------------------------------------- |
+| `command` | `String` | `true`   |         | Search the list of tags by `tag`                                  |
+| `org`     | `String` | `true`   |         | Name of the organization to be searched                           |
+| `token`   | `String` | `true`   |         | Specify `Personal Access Token`                                   |
+| `matcher` | `String` | `true`   | `''`    | Specify a search package names                                    |
+| `pattern` | `String` | `false`  | `sem`   | Search semantic version in `sem`, Git commit hash in sha in `sha` |
+| `depth`   | `String` | `false`  | `0`     | Depth to search for tags, if 0, search all                        |
+| `range`   | `String` | `false`  | `all`   | Specify the range of tags to compare by `major`, `minor`, `all`   |
 
 ### outputs
 
@@ -29,37 +29,6 @@ You can get a list of packages and the tags they have been assigned.
 | `result` | `Json` | List of Subjects |
 
 ## Usage
-
-### package command
-
-```yaml
-name: ci
-
-on:
-  push:
-    branches:
-      - 'main'
-
-jobs:
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Package List
-        id: list
-        uses: chmikata/gh-pkg-actions@v1
-        with:
-          command: package
-          org: organization
-          token: ${{ secrets.PAT }}
-          matcher: test-image
-      - name: Output List
-        run: |
-          echo ${{ steps.list.outputs.result }}
-```
-The following output results
-```bash
-[{"id":1234567,"name":"test/package1"},{"id":2345678,"name":"test/package2"}]
-```
 
 ### tag command
 
@@ -81,7 +50,7 @@ jobs:
         with:
           command: tag
           org: organization
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           matcher: test-image
           pattern: sem
           depth: 2
@@ -92,5 +61,5 @@ jobs:
 ```
 The following output results
 ```bash
-[{"id":1234567,"name":"test/package1","tags":["1.1.0-rc2","1.0.0"]},{"id":2345678,"name":"test/package2","tags":["1.2.0","1.1.0"]}]
+{"name":"test/package1","tags":["1.1.0-rc2","1.0.0"]}
 ```
