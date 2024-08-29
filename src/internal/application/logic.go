@@ -3,7 +3,6 @@ package application
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,7 +10,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -21,13 +19,7 @@ const (
 	ShaMatcher = "^sha-[0-9a-f]{40}$"
 )
 
-type Package struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-}
-
 type Tag struct {
-	Id   int      `json:"id"`
 	Name string   `json:"name"`
 	Tags []string `json:"tags"`
 }
@@ -95,91 +87,17 @@ func NewRegistry(org, token string, options ...Option) *Registry {
 	return registry
 }
 
-func (r *Registry) GetPackages(matcher string) ([]Package, error) {
-	packages, err := r.getPackages(matcher)
+func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) (*Tag, error) {
+	tags, err := r.getTags(matcher, pattern, depth, semRange)
 	if err != nil {
 		return nil, err
 	}
-	return packages, nil
-}
+	tag := &Tag{
+		Name: matcher,
+		Tags: tags,
+	}
 
-func (r *Registry) GetTags(matcher, pattern string, depth int, semRange string) ([]Tag, error) {
-	packages, err := r.getPackages(matcher)
-	if err != nil {
-		return nil, err
-	}
-	var wg sync.WaitGroup
-	var tagsMu sync.Mutex
-	var errMu sync.Mutex
-	var multiErr error
-	tags := make([]Tag, 0, 100)
-	for _, pkg := range packages {
-		wg.Add(1)
-		go func(pkg Package) {
-			defer wg.Done()
-			arr, err := r.getTags(pkg.Name, pattern, depth, semRange)
-			if err != nil {
-				errMu.Lock()
-				multiErr = errors.Join(multiErr, err)
-				errMu.Unlock()
-				return
-			}
-			tag := Tag{
-				Id:   pkg.Id,
-				Name: pkg.Name,
-				Tags: arr,
-			}
-			tagsMu.Lock()
-			tags = append(tags, tag)
-			tagsMu.Unlock()
-		}(pkg)
-	}
-	wg.Wait()
-	if multiErr != nil {
-		return nil, multiErr
-	}
-	return tags, nil
-}
-
-func (r *Registry) getPackages(matcher string) ([]Package, error) {
-	packages := make([]Package, 0, 100)
-	for i := 1; ; i++ {
-		req, err := http.NewRequest(
-			"GET",
-			fmt.Sprintf(UrlBase, r.org),
-			nil)
-		if err != nil {
-			return nil, err
-		}
-		q := req.URL.Query()
-		q.Add("package_type", "container")
-		q.Add("per_page", "100")
-		q.Add("page", fmt.Sprintf("%d", i))
-		req.URL.RawQuery = q.Encode()
-
-		header, body, err := r.request.ExecHttpReq(req, r.token)
-		if err != nil {
-			return nil, err
-		}
-		tmpArr := make([]Package, 0, 100)
-		json.Unmarshal(body, &tmpArr)
-		for _, p := range tmpArr {
-			match, _ := regexp.MatchString(matcher, p.Name)
-			if match {
-				packages = append(packages, p)
-			}
-		}
-		linkVal := header.Get("Link")
-		links := strings.Split(linkVal, ",")
-		for _, link := range links {
-			if strings.Contains(link, "rel=\"next\"") {
-				goto loop
-			}
-		}
-		break
-	loop:
-	}
-	return packages, nil
+	return tag, nil
 }
 
 func (r *Registry) getTags(name, pattern string, depth int, semRange string) ([]string, error) {
